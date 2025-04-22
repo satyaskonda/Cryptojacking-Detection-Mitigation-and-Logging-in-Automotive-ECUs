@@ -1,0 +1,34 @@
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+
+# Load the dataset
+df = pd.read_csv(r"C:\Users\satya\Downloads\system_monitoring_data.csv")
+
+# Features (CPU, Memory, Network Traffic)
+X = df[['CPU_Usage', 'Memory_Usage', 'Bytes_Sent', 'Bytes_Recv']]
+y = df['XMRig_Running']  # Target: 1 = Mining detected, 0 = No mining
+
+# Split dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train a Random Forest Classifier
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+clf.fit(X_train, y_train)
+
+# Predict on test data
+y_pred = clf.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Detection Model Accuracy: {accuracy:.2f}")
+
+# Detect cryptojacking in new system data
+def detect_cryptojacking(cpu, memory, sent, recv):
+    features = np.array([[cpu, memory, sent, recv]])
+    prediction = clf.predict(features)
+    return "Cryptojacking Detected!" if prediction[0] == 1 else "No Cryptojacking Activity."
+
+# Example Usage
+print(detect_cryptojacking(100.0, 80.0, 5000000, 100000000))  # High resource usage scenario
+print(detect_cryptojacking(30.0, 20.0, 300000, 1000000))
