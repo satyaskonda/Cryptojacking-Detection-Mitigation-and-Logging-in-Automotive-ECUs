@@ -1,0 +1,44 @@
+#Python monitoring script for  cryptojacking
+import psutil
+import time
+import csv
+
+# Define CSV file to store system monitoring data
+csv_filename = "system_monitoring_data.csv"
+
+# Create CSV file and write the header
+with open(csv_filename, mode="w", newline="") as file:
+    writer = csv.writer(file)
+    writer.writerow(["Timestamp", "CPU_Usage", "Memory_Usage", "Bytes_Sent", "Bytes_Recv", "XMRig_Running"])
+
+def is_xmrig_running():
+    """Check if XMRig (cryptojacking tool) is running."""
+    for process in psutil.process_iter(attrs=['pid', 'name']):
+        if "xmrig" in process.info['name'].lower():
+            return 1  # XMRig detected
+    return 0  # No cryptojacking activity
+
+def monitor_system(interval=5, duration=300):
+    """Monitor system metrics and log them in a CSV file."""
+    start_time = time.time()
+    
+    while (time.time() - start_time) < duration:
+        cpu_usage = psutil.cpu_percent(interval=1)
+        memory_usage = psutil.virtual_memory().percent
+        net_io = psutil.net_io_counters()
+        bytes_sent = net_io.bytes_sent
+        bytes_recv = net_io.bytes_recv
+        xmrig_status = is_xmrig_running()
+
+        # Log data into CSV file
+        with open(csv_filename, mode="a", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), cpu_usage, memory_usage, bytes_sent, bytes_recv, xmrig_status])
+
+        print(f"CPU: {cpu_usage}%, Memory: {memory_usage}%, Sent: {bytes_sent}, Recv: {bytes_recv}, XMRig: {'Detected' if xmrig_status else 'Not Detected'}")
+        
+        time.sleep(interval - 1)  # Adjust sleep time to maintain interval
+
+if __name__ == "__main__":
+    print("Starting System Monitoring for Cryptojacking Detection...")
+    monitor_system()
