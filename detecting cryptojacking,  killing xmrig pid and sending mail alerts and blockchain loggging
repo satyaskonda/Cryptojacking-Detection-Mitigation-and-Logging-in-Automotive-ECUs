@@ -1,0 +1,94 @@
+import os
+import smtplib
+import psutil
+import time
+import signal
+from web3 import Web3
+from datetime import datetime
+ 
+# Email Configuration
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SENDER_EMAIL = "dharanigruhanveshana@gmail.com"
+SENDER_PASSWORD = "tdllbwwrmqakxsao"  # Use Google App Password here
+RECIPIENT_EMAIL = "satyasravanikonda@gmail.com"
+ 
+# Connect to Ganache
+ganache_url = "http://127.0.0.1:8545"
+web3 = Web3(Web3.HTTPProvider(ganache_url))
+ 
+# Ensure connection
+if not web3.is_connected():
+    print("Error: Web3 not connected!")
+    exit()
+ 
+# Use the address from Ganache
+sender_account = web3.eth.accounts[0]
+ 
+# Smart contract details
+contract_address = "0xf8e81D47203A594245E36C48e151709F0C19fBe8"
+abi = [
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": False, "internalType": "uint256", "name": "timestamp", "type": "uint256"},
+            {"indexed": False, "internalType": "string", "name": "message", "type": "string"}
+        ],
+        "name": "CryptoJackingDetected",
+        "type": "event"
+    },
+    {
+        "inputs": [{"internalType": "string", "name": "_message", "type": "string"}],
+        "name": "logEvent",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]
+ 
+contract = web3.eth.contract(address=contract_address, abi=abi)
+ 
+# Function to send an email alert
+def send_alert_email():
+    try:
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        message = "Subject: Cryptojacking Detected!\n\nXMRig has been detected and terminated on your system."
+        server.sendmail(SENDER_EMAIL, RECIPIENT_EMAIL, message)
+        server.quit()
+        print("✅ Email alert sent successfully!")
+    except Exception as e:
+        print(f"❌ Error sending email: {e}")
+ 
+# Function to log detected cryptojacking events in blockchain
+def log_to_blockchain(message):
+    try:
+        print("🔗 Logging event to blockchain...")
+        tx = contract.functions.logEvent(message).transact({'from': sender_account})
+        receipt = web3.eth.wait_for_transaction_receipt(tx)
+        print(f"✅ Logged to Blockchain: {message}, Tx Hash: {receipt.transactionHash.hex()}")
+    except Exception as e:
+        print(f"❌ Error logging event: {e}")
+ 
+# Function to check and kill XMRig
+def detect_and_kill_xmrig():
+    for process in psutil.process_iter(['pid', 'name']):
+        if "xmrig" in process.info['name'].lower():  # Check if XMRig is running
+            pid = process.info['pid']
+            print(f"⚠ Cryptojacking Detected! Killing XMRig (PID: {pid})...")
+            os.kill(pid, signal.SIGKILL)  # Kill XMRig
+            send_alert_email()  # Send email alert
+            log_to_blockchain("Cryptojacking detected on Kali Linux")  # Log event
+            return True
+    return False
+ 
+# Main Loop to Monitor System
+try:
+    while True:
+        detected = detect_and_kill_xmrig()
+        if not detected:
+            print("✅ System clean. No cryptojacking detected.")
+        time.sleep(10)  # Check every 10 seconds
+except KeyboardInterrupt:
+    print("\n❌ Monitoring stopped due to Keyboard Interrupt. Exiting gracefully.")
